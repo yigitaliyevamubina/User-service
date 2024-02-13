@@ -1,2 +1,2 @@
 # User-service
-![User-service database architecture](https://raw.githubusercontent.com/yigitaliyevamubina/User-service/main/User-service%20database%20architecture.png)
+![User-service database architecture](https://github.com/yigitaliyevamubina/User-service/blob/main/User-service%20database%20architecture.png)
