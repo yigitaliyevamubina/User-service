@@ -3,8 +3,9 @@ package postgres
 import (
 	"database/sql"
 	"fmt"
-	"github.com/golang/protobuf/ptypes/empty"
 	pb "user-service/genproto/user-service"
+
+	"github.com/golang/protobuf/ptypes/empty"
 )
 
 type userRepo struct {
@@ -27,11 +28,13 @@ func NewUserRepo(db *sql.DB) *userRepo {
 //rpc Login(LoginReq) returns (LoginResp) {}
 
 func (u *userRepo) CreateUser(user *pb.User) (*pb.User, error) {
-	query := `INSERT INTO users(first_name, 
+	query := `INSERT INTO users(id,
+								first_name, 
                   				last_name, 
                   				birth_date, 
-                  				email, password) 
-								VALUES($1, $2, $3, $4, $5) 
+                  				email, 
+								password) 
+								VALUES($1, $2, $3, $4, $5, $6, $7) 
 								RETURNING id,
 								first_name, 
                   				last_name, 
@@ -52,7 +55,8 @@ func (u *userRepo) CreateUser(user *pb.User) (*pb.User, error) {
 		&user.LastName,
 		&user.BirthDate,
 		&user.Email,
-		&user.Password); err != nil {
+		&user.Password,
+		&user.CreatedAt); err != nil {
 		return nil, err
 	}
 
@@ -166,7 +170,7 @@ func (u *userRepo) CheckEmail(emailReq *pb.CheckEmailReq) (*pb.CheckEmailResp, e
 }
 
 func (u *userRepo) CheckField(req *pb.CheckFieldReq) (*pb.CheckFieldResp, error) {
-	query := fmt.Sprintf(`SELECT count(1) FROM users WHERE %s = $2 AND deleted_at IS NULL`, req.Field)
+	query := fmt.Sprintf(`SELECT count(1) FROM users WHERE %s = $1 AND deleted_at IS NULL`, req.Field)
 
 	var isExists int
 
@@ -177,7 +181,7 @@ func (u *userRepo) CheckField(req *pb.CheckFieldReq) (*pb.CheckFieldResp, error)
 
 	if isExists == 1 {
 		return &pb.CheckFieldResp{
-			Status: false,
+			Status: true,
 		}, nil
 	}
 
@@ -187,16 +191,27 @@ func (u *userRepo) CheckField(req *pb.CheckFieldReq) (*pb.CheckFieldResp, error)
 }
 
 func (u *userRepo) GetAllUsers(req *pb.ListUsersReq) (*pb.ListUsersResp, error) {
-	query := `SELECT id
+	offset := (req.Page - 1) * req.Limit
+	validColumns := map[string]bool{
+		"first_name": true,
+		"last_name":  true,
+		"birth_date": true,
+	}
+	orderby := "created_at"
+	if _, ok := validColumns[req.Filter]; ok {
+		orderby = req.Filter
+	}
+
+	query := fmt.Sprintf(`SELECT id,
 				first_name,
 				last_name,
 				birth_date,
-			    email
- 				password
-				created_at 	
-				FROM users WHERE deleted_at IS NULL`
+			    email,
+ 				password,
+				created_at, 	
+				FROM users WHERE deleted_at IS NULL ORDER BY %s LIMIT $1 OFFSET $2`, orderby)
 
-	rows, err := u.db.Query(query)
+	rows, err := u.db.Query(query, req.Limit, offset)
 	if err != nil {
 		return nil, err
 	}
