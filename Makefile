@@ -11,7 +11,10 @@ migrate-up:
 	migrate -path migrations -database "$(DB_URL)" -verbose up 
 
 migrate-down:
-	migrate -path migrations -database "$(DB_URL)" -verbose down 
+	migrate -path migrations -database "$(DB_URL)" -verbose down
+
+migrate-force:
+	migrate -path migrations -database "$(DB_URL)" -verbose force 3
 
 migrate-file:
-	migrate create -ext sql -dir migrations/ -seq create_users_table
+	migrate create -ext sql -dir migrations/ -seq create_account_verification_table
