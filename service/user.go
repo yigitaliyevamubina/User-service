@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"database/sql"
-	"github.com/golang/protobuf/ptypes/empty"
 	pb "user-service/genproto/user-service"
 	"user-service/pkg/logger"
 	grpcclient "user-service/service/grpc_client"
 	"user-service/storage"
+
+	"github.com/golang/protobuf/ptypes/empty"
 )
 
 //User-service
@@ -16,7 +17,6 @@ type UserService struct {
 	storage storage.IStorage
 	logger  logger.Logger
 	client  grpcclient.IServiceManager
-	pb.UnimplementedUserServiceServer
 }
 
 func NewUserService(db *sql.DB, log logger.Logger, client grpcclient.IServiceManager) *UserService {
@@ -27,50 +27,99 @@ func NewUserService(db *sql.DB, log logger.Logger, client grpcclient.IServiceMan
 	}
 }
 
-// rpc CreateUser(User) returns (User) {}
-// rpc UpdateUser(User) returns (User) {}
-// rpc GetUserById(GetUserReqById) returns (User) {}
-// rpc GetUserByEmail(GetUserByEmailReq) returns (GetUserByEmailResp) {}
-// rpc DeleteUser(DeleteUserReq) returns (google.protobuf.Empty) {}
-// rpc CheckEmail(CheckEmailReq) returns (CheckEmailResp) {}
-// rpc CheckField(CheckEmailReq) returns (CheckEmailResp) {}
-// rpc GetAllUsers(ListUsersReq) returns (ListUsersResp) {}
-// rpc Login(LoginReq) returns (LoginResp) {}
-
 func (s *UserService) CreateUser(ctx context.Context, req *pb.User) (*pb.User, error) {
-	return s.storage.User().CreateUser(req)
+	user, err := s.storage.User().CreateUser(req)
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (s *UserService) UpdateUser(ctx context.Context, req *pb.User) (*pb.User, error) {
-	return s.storage.User().UpdateUser(req)
+	user, err := s.storage.User().UpdateUser(req)
+
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return user, nil
 }
 
 func (s *UserService) GetUserById(ctx context.Context, req *pb.GetUserReqById) (*pb.User, error) {
-	return s.storage.User().GetUserById(req)
-}
+	user, err := s.storage.User().GetUserById(req)
+	
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
 
-func (s *UserService) GetUserByEmail(ctx context.Context, req *pb.GetUserByEmailReq) (*pb.GetUserByEmailResp, error) {
-	return s.storage.User().GetUserByEmail(req)
+	return user, nil
 }
 
 func (s *UserService) DeleteUser(ctx context.Context, req *pb.DeleteUserReq) (*empty.Empty, error) {
-	return s.storage.User().DeleteUser(req)
-}
+	resp, err := s.storage.User().DeleteUser(req)
 
-func (s *UserService) CheckEmail(ctx context.Context, req *pb.CheckEmailReq) (*pb.CheckEmailResp, error) {
-	return s.storage.User().CheckEmail(req)
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (s *UserService) CheckField(ctx context.Context, req *pb.CheckFieldReq) (*pb.CheckFieldResp, error) {
-	return s.storage.User().CheckField(req)
+	resp, err := s.storage.User().CheckField(req)
+
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 func (s *UserService) GetAllUsers(ctx context.Context, req *pb.ListUsersReq) (*pb.ListUsersResp, error) {
-	return s.storage.User().GetAllUsers(req)
+	users, err := s.storage.User().GetAllUsers(req)
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return users, nil
 }
 
-func (s *UserService) Login(ctx context.Context, req *pb.LoginReq) (*pb.LoginResp, error) {
-	return s.storage.User().Login(req)
+func (s *UserService) IfExists(ctx context.Context, req *pb.IfExistsReq) (*pb.IfExistsResp, error) {
+	resp, err := s.storage.User().IfExists(req)
+
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return resp, nil
 }
 
-func (s *UserService) mustEmbedUnimplementedUserServiceServer() {}
+func (s *UserService) ChangePassword(ctx context.Context, req *pb.ChangeUserPasswordReq) (*pb.ChangeUserPasswordResp, error) {
+	resp, err := s.storage.User().ChangePassword(req)
+
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (s *UserService) UpdateRefreshToken(ctx context.Context, req *pb.UpdateRefreshTokenReq) (*pb.UpdateRefreshTokenResp, error) {
+	resp, err := s.storage.User().UpdateRefreshToken(req)
+
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	return resp, nil
+}

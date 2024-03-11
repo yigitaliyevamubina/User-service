@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+
 	"github.com/spf13/cast"
 )
 
@@ -30,16 +32,16 @@ func Load() Config {
 
 	c.LogLevel = cast.ToString(getOrReturnDefault("LOG_LEVEL", "debug"))
 
-	c.RPCPort = cast.ToString(getOrReturnDefault("RPC_PORT", ":9090"))
+	c.RPCPort = cast.ToString(getOrReturnDefault("RPC_PORT", ":8080"))
 
 	return c
 }
 
 func getOrReturnDefault(key string, defaultValue interface{}) interface{} {
-	// _, exists := os.LookupEnv(key)
-	// if exists {
-	//     return os.Getenv(key)
-	// }
+	_, exists := os.LookupEnv(key)
+	if exists {
+		return defaultValue
+	}
 
 	return defaultValue
 }

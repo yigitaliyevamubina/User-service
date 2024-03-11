@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS users (
     last_name VARCHAR(50) NOT NULL,
     birth_date DATE NOT NULL,
     email VARCHAR(100) NOT NULL,
-    password VARCHAR(30) NOT NULL,
+    password TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
     deleted_at TIMESTAMP

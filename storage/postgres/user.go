@@ -17,23 +17,14 @@ func NewUserRepo(db *sql.DB) *userRepo {
 	return &userRepo{db: db}
 }
 
-//rpc CreateUser(User) returns (User) {}
-//rpc UpdateUser(User) returns (User) {}
-//rpc GetUserById(GetUserReqById) returns (User) {}
-//rpc GetUserByEmail(GetUserByEmailReq) returns (GetUserByEmailResp) {}
-//rpc DeleteUser(DeleteUserReq) returns (google.protobuf.Empty) {}
-//rpc CheckEmail(CheckEmailReq) returns (CheckEmailResp) {}
-//rpc CheckField(CheckEmailReq) returns (CheckEmailResp) {}
-//rpc GetAllUsers(ListUsersReq) returns (ListUsersResp) {}
-//rpc Login(LoginReq) returns (LoginResp) {}
-
 func (u *userRepo) CreateUser(user *pb.User) (*pb.User, error) {
 	query := `INSERT INTO users(id,
 								first_name, 
                   				last_name, 
                   				birth_date, 
                   				email, 
-								password) 
+								password,
+								refresh_token) 
 								VALUES($1, $2, $3, $4, $5, $6, $7) 
 								RETURNING id,
 								first_name, 
@@ -41,6 +32,7 @@ func (u *userRepo) CreateUser(user *pb.User) (*pb.User, error) {
                   				birth_date, 
                   				email, 
                   				password,
+								refresh_token,
 								created_at`
 
 	row := u.db.QueryRow(query,
@@ -49,14 +41,17 @@ func (u *userRepo) CreateUser(user *pb.User) (*pb.User, error) {
 		user.LastName,
 		user.BirthDate,
 		user.Email,
-		user.Password)
+		user.Password,
+		user.RefreshToken)
 	if err := row.Scan(&user.Id,
 		&user.FirstName,
 		&user.LastName,
 		&user.BirthDate,
 		&user.Email,
 		&user.Password,
+		&user.RefreshToken,
 		&user.CreatedAt); err != nil {
+			fmt.Println(err)
 		return nil, err
 	}
 
@@ -111,36 +106,8 @@ func (u *userRepo) GetUserById(userId *pb.GetUserReqById) (*pb.User, error) {
 	return &user, nil
 }
 
-func (u *userRepo) GetUserByEmail(userEmail *pb.GetUserByEmailReq) (*pb.GetUserByEmailResp, error) {
-	query := `SELECT id,
-					first_name, 
-                  	last_name, 
-					birth_date, 
-					email, 
-					password,
-					created_at FROM users WHERE email = $1 AND deleted_at IS NULL`
-
-	row := u.db.QueryRow(query, userEmail.Email)
-	response := pb.GetUserByEmailResp{User: &pb.User{}}
-	user := pb.User{}
-
-	if err := row.Scan(&user.Id,
-		&user.FirstName,
-		&user.LastName,
-		&user.BirthDate,
-		&user.Email,
-		&user.Password,
-		&user.CreatedAt); err != nil {
-		return nil, err
-	}
-
-	response.User = &user
-
-	return &response, nil
-}
-
 func (u *userRepo) DeleteUser(userId *pb.DeleteUserReq) (*empty.Empty, error) {
-	query := `UPDATE TABLE SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1`
+	query := `UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND deleted_at IS NULL`
 
 	_, err := u.db.Exec(query, userId.UserId)
 	if err != nil {
@@ -148,25 +115,6 @@ func (u *userRepo) DeleteUser(userId *pb.DeleteUserReq) (*empty.Empty, error) {
 	}
 
 	return &empty.Empty{}, nil
-}
-
-func (u *userRepo) CheckEmail(emailReq *pb.CheckEmailReq) (*pb.CheckEmailResp, error) {
-	query := `SELECT count(1) FROM users WHERE email = $1 AND deleted_at IS NOT NULL`
-
-	var isExists int
-	row := u.db.QueryRow(query, emailReq.Email)
-	if err := row.Scan(&isExists); err != nil {
-		return nil, err
-	}
-
-	if isExists == 1 {
-		return &pb.CheckEmailResp{
-			Status: true,
-		}, nil
-	}
-	return &pb.CheckEmailResp{
-		Status: false,
-	}, nil
 }
 
 func (u *userRepo) CheckField(req *pb.CheckFieldReq) (*pb.CheckFieldResp, error) {
@@ -208,7 +156,7 @@ func (u *userRepo) GetAllUsers(req *pb.ListUsersReq) (*pb.ListUsersResp, error) 
 				birth_date,
 			    email,
  				password,
-				created_at, 	
+				created_at	
 				FROM users WHERE deleted_at IS NULL ORDER BY %s LIMIT $1 OFFSET $2`, orderby)
 
 	rows, err := u.db.Query(query, req.Limit, offset)
@@ -238,17 +186,17 @@ func (u *userRepo) GetAllUsers(req *pb.ListUsersReq) (*pb.ListUsersResp, error) 
 	return users, nil
 }
 
-func (u *userRepo) Login(req *pb.LoginReq) (*pb.LoginResp, error) {
+func (u *userRepo) IfExists(req *pb.IfExistsReq) (*pb.IfExistsResp, error) {
 	query := `SELECT id,
 					first_name, 
                   	last_name, 
 					birth_date, 
 					email, 
 					password,
-					created_at FROM users WHERE email = $1 AND password = $2`
+					created_at FROM users WHERE email = $1 AND deleted_at IS NULL`
 
-	response := pb.LoginResp{User: &pb.User{}}
-	row := u.db.QueryRow(query, req.Email, req.Password)
+	response := pb.IfExistsResp{User: &pb.User{}}
+	row := u.db.QueryRow(query, req.Email)
 	if err := row.Scan(&response.User.Id,
 		&response.User.FirstName,
 		&response.User.LastName,
@@ -260,4 +208,26 @@ func (u *userRepo) Login(req *pb.LoginReq) (*pb.LoginResp, error) {
 	}
 
 	return &response, nil
+}
+
+func (u *userRepo) ChangePassword(req *pb.ChangeUserPasswordReq) (*pb.ChangeUserPasswordResp, error) {
+	query := `UPDATE users SET password = $1 WHERE email = $2 AND deleted_at IS NULL`
+
+	_, err := u.db.Exec(query, req.Password, req.Email)
+	if err != nil {
+		return &pb.ChangeUserPasswordResp{Status: false}, err
+	}
+
+	return &pb.ChangeUserPasswordResp{Status: true}, nil
+}
+
+func (u *userRepo) UpdateRefreshToken(req *pb.UpdateRefreshTokenReq) (*pb.UpdateRefreshTokenResp, error) {
+	query := `UPDATE users SET refresh_token = $1 WHERE id = $2 AND deleted_at IS NULL`
+
+	_, err := u.db.Exec(query, req.RefreshToken, req.UserId)
+	if err != nil {
+		return &pb.UpdateRefreshTokenResp{Status: false}, err
+	}
+
+	return &pb.UpdateRefreshTokenResp{Status: true}, err
 }

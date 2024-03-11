@@ -14,7 +14,10 @@ migrate-down:
 	migrate -path migrations -database "$(DB_URL)" -verbose down
 
 migrate-force:
-	migrate -path migrations -database "$(DB_URL)" -verbose force 3
+	migrate -path migrations -database "$(DB_URL)" -verbose force
 
 migrate-file:
 	migrate create -ext sql -dir migrations/ -seq create_account_verification_table
+
+g:
+	go run cmd/main.go
